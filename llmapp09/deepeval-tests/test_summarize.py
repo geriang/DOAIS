@@ -13,7 +13,7 @@ from deepeval.metrics import GEval
 from deepeval.dataset import EvaluationDataset
 
 from api_client import summarize_text
-from conftest import json_schema_metric, output_correctness_metric, answer_relevancy_metric
+from conftest import answer_relevancy_metric, json_schema_metric, ollama_evaluator_model
 
 
 # ---------------------------------------------------------------------------
@@ -119,16 +119,20 @@ SUMMARIZE_TEST_DATA = [
 # Build test cases by calling the live API
 # ---------------------------------------------------------------------------
 
+
 def build_summarize_test_cases():
     test_cases = []
     for data in SUMMARIZE_TEST_DATA:
         response = summarize_text(data["input"])
         actual_output = json.dumps(response)
-        expected_output = json.dumps({
-            "summary": "A concise summary covering: " + ", ".join(data["expected_key_topics"]),
-            "keyPoints": data["expected_key_topics"],
-            "wordCount": 30,
-        })
+        expected_output = json.dumps(
+            {
+                "summary": "A concise summary covering: "
+                + ", ".join(data["expected_key_topics"]),
+                "keyPoints": data["expected_key_topics"],
+                "wordCount": 30,
+            }
+        )
         test_cases.append(
             LLMTestCase(
                 input=data["input"],
@@ -165,11 +169,16 @@ summarize_correctness_metric = GEval(
         "topics. The key points should reflect the most important aspects of "
         "the input text."
     ),
+    evaluation_steps=[
+        "Identify the main ideas and key facts in the input text.",
+        "Check that the summary and key points capture those ideas without adding unsupported claims.",
+    ],
     evaluation_params=[
         LLMTestCaseParams.INPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT,
         LLMTestCaseParams.EXPECTED_OUTPUT,
     ],
+    model=ollama_evaluator_model(),
     threshold=0.7,
 )
 
@@ -181,10 +190,15 @@ summarize_conciseness_metric = GEval(
         "input text while retaining all essential information. The wordCount "
         "field should be reasonable relative to the input length."
     ),
+    evaluation_steps=[
+        "Compare the summary length with the input length.",
+        "Check that it is concise while retaining essential information.",
+    ],
     evaluation_params=[
         LLMTestCaseParams.INPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT,
     ],
+    model=ollama_evaluator_model(),
     threshold=0.7,
 )
 
@@ -196,10 +210,15 @@ summarize_faithfulness_metric = GEval(
         "facts, statistics, or claims that are not present in the input. "
         "Penalize any fabricated information heavily."
     ),
+    evaluation_steps=[
+        "Check each factual claim in the summary against the input text.",
+        "Penalize claims that are not supported by the input.",
+    ],
     evaluation_params=[
         LLMTestCaseParams.INPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT,
     ],
+    model=ollama_evaluator_model(),
     threshold=0.8,
 )
 
@@ -209,6 +228,7 @@ summarize_relevancy_metric = answer_relevancy_metric()
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("test_case", summarize_dataset.test_cases)
 def test_summarize_schema_compliance(test_case: LLMTestCase):

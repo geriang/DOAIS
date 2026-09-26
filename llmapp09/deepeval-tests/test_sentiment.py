@@ -13,7 +13,7 @@ from deepeval.metrics import GEval
 from deepeval.dataset import EvaluationDataset
 
 from api_client import analyze_sentiment
-from conftest import json_schema_metric, output_correctness_metric, answer_relevancy_metric
+from conftest import answer_relevancy_metric, json_schema_metric, ollama_evaluator_model
 
 
 # ---------------------------------------------------------------------------
@@ -77,17 +77,20 @@ SENTIMENT_TEST_DATA = [
 # Build test cases by calling the live API
 # ---------------------------------------------------------------------------
 
+
 def build_sentiment_test_cases():
     test_cases = []
     for data in SENTIMENT_TEST_DATA:
         response = analyze_sentiment(data["input"])
         actual_output = json.dumps(response)
-        expected_output = json.dumps({
-            "overallSentiment": data["expected_sentiment"],
-            "sentimentScore": sum(data["expected_score_range"]) / 2,
-            "emotions": data["expected_emotions"],
-            "confidence": 0.9,
-        })
+        expected_output = json.dumps(
+            {
+                "overallSentiment": data["expected_sentiment"],
+                "sentimentScore": sum(data["expected_score_range"]) / 2,
+                "emotions": data["expected_emotions"],
+                "confidence": 0.9,
+            }
+        )
         test_cases.append(
             LLMTestCase(
                 input=data["input"],
@@ -126,11 +129,17 @@ sentiment_correctness_metric = GEval(
         "have positive scores, negative text should have negative scores), "
         "(3) the detected emotions are plausible for the given text."
     ),
+    evaluation_steps=[
+        "Determine the dominant sentiment in the input.",
+        "Check that the output sentiment and score match the input tone.",
+        "Check that the listed emotions are plausible for the input.",
+    ],
     evaluation_params=[
         LLMTestCaseParams.INPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT,
         LLMTestCaseParams.EXPECTED_OUTPUT,
     ],
+    model=ollama_evaluator_model(),
     threshold=0.7,
 )
 
@@ -142,10 +151,15 @@ sentiment_emotion_metric = GEval(
         "should reflect the emotional tone conveyed in the text. Synonyms "
         "and closely related emotions should be considered acceptable."
     ),
+    evaluation_steps=[
+        "Identify the emotions conveyed by the input text.",
+        "Check whether the detected emotions reasonably reflect that tone.",
+    ],
     evaluation_params=[
         LLMTestCaseParams.INPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT,
     ],
+    model=ollama_evaluator_model(),
     threshold=0.6,
 )
 
@@ -155,6 +169,7 @@ sentiment_relevancy_metric = answer_relevancy_metric()
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("test_case", sentiment_dataset.test_cases)
 def test_sentiment_schema_compliance(test_case: LLMTestCase):

@@ -4,20 +4,20 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'promptfoo-tests/**'
-      - 'llm-multiroute/**'
-      - '.github/workflows/promptfoo-tests-ci.yml'
+      - 'llmapp09/promptfoo-tests/**'
+      - 'llmapp09/llm-multiroute/**'
+      - 'llmapp09/.github/workflows/promptfoo-tests-ci.yml'
   pull_request:
     branches: [main, master]
     paths:
-      - 'promptfoo-tests/**'
-      - 'llm-multiroute/**'
-      - '.github/workflows/promptfoo-tests-ci.yml'
+      - 'llmapp09/promptfoo-tests/**'
+      - 'llmapp09/llm-multiroute/**'
+      - 'llmapp09/.github/workflows/promptfoo-tests-ci.yml'
   workflow_dispatch:
 
 env:
-  OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-  OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
+  OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }} # required in github secrets
+  OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }} # required in github secrets
 
 jobs:
   promptfoo-eval:
@@ -33,8 +33,7 @@ jobs:
 
       - name: Build and start backend
         run: |
-          docker compose up -d llm-multiroute
-        working-directory: .
+          docker compose -f llmapp09/docker-compose.yml up -d llm-multiroute
 
       - name: Wait for backend to be ready
         run: |
@@ -50,25 +49,23 @@ jobs:
           echo "Backend failed to start."
           docker compose logs llm-multiroute
           exit 1
-        working-directory: .
 
       - name: Run PromptFoo classify evaluation
-        working-directory: promptfoo-tests
+        working-directory: llmapp09/promptfoo-tests
         run: npx promptfoo@latest eval -c classify.yaml
 
       - name: Run PromptFoo sentiment evaluation
-        working-directory: promptfoo-tests
+        working-directory: llmapp09/promptfoo-tests
         run: npx promptfoo@latest eval -c sentiment.yaml
 
       - name: Run PromptFoo summarize evaluation
-        working-directory: promptfoo-tests
+        working-directory: llmapp09/promptfoo-tests
         run: npx promptfoo@latest eval -c summarize.yaml
 
       - name: Run PromptFoo intent evaluation
-        working-directory: promptfoo-tests
+        working-directory: llmapp09/promptfoo-tests
         run: npx promptfoo@latest eval -c intent.yaml
 
       - name: Tear down backend
         if: always()
-        run: docker compose down
-        working-directory: .
+        run: docker compose -f llmapp09/docker-compose.yml down

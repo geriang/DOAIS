@@ -13,7 +13,7 @@ from deepeval.metrics import GEval
 from deepeval.dataset import EvaluationDataset
 
 from api_client import classify_text
-from conftest import json_schema_metric, output_correctness_metric, answer_relevancy_metric
+from conftest import answer_relevancy_metric, json_schema_metric, ollama_evaluator_model
 
 
 # ---------------------------------------------------------------------------
@@ -72,16 +72,19 @@ CLASSIFY_TEST_DATA = [
 # Build test cases by calling the live API
 # ---------------------------------------------------------------------------
 
+
 def build_classify_test_cases():
     test_cases = []
     for data in CLASSIFY_TEST_DATA:
         response = classify_text(data["input"])
         actual_output = json.dumps(response)
-        expected_output = json.dumps({
-            "labels": data["expected_labels"],
-            "primaryCategory": data["expected_category"],
-            "confidence": 0.9,
-        })
+        expected_output = json.dumps(
+            {
+                "labels": data["expected_labels"],
+                "primaryCategory": data["expected_category"],
+                "confidence": 0.9,
+            }
+        )
         test_cases.append(
             LLMTestCase(
                 input=data["input"],
@@ -120,11 +123,17 @@ classify_correctness_metric = GEval(
         "considered acceptable. "
         "The confidence score should be between 0 and 1."
     ),
+    evaluation_steps=[
+        "Identify the dominant topic in the input text.",
+        "Check whether the labels and primary category describe that topic accurately.",
+        "Check that the confidence score is between 0 and 1.",
+    ],
     evaluation_params=[
         LLMTestCaseParams.INPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT,
         LLMTestCaseParams.EXPECTED_OUTPUT,
     ],
+    model=ollama_evaluator_model(),
     threshold=0.5,
 )
 
@@ -134,6 +143,7 @@ classify_relevancy_metric = answer_relevancy_metric()
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("test_case", classify_dataset.test_cases)
 def test_classify_schema_compliance(test_case: LLMTestCase):
