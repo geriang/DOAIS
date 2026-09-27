@@ -44,23 +44,19 @@
 
   # How to Run
 
-  cd "workshop/Day 3/DOAIS/llmapp09/deepeval-tests"
+  cd /Users/Darryl/Downloads/projects/llmapp04/deepeval-tests
 
-  # Terminal 1: start the FastAPI backend
-  cd "workshop/Day 3/DOAIS/llmapp09/llm-multiroute"
-  python -m uvicorn app.main:app --port 8080 --reload
+  # 1. Install dependencies
+  pip install -r requirements.txt
 
-  # Terminal 2: from the workspace root, install test dependencies
-  cd "workshop/Day 3/DOAIS/llmapp09/deepeval-tests"
-  python -m pip install -r requirements.txt
+  # 2. Set OpenAI API key (used as the evaluation judge LLM)
+  export OPENAI_API_KEY="your-openai-api-key"
 
-  # Configure the Ollama judge in this test terminal
-  export OLLAMA_BASE_URL="https://ollama.com"
-  export OLLAMA_EVAL_MODEL="gemma4:31b"
-  export OLLAMA_API_KEY="your-ollama-api-key"
+  # 3. Make sure the Spring Boot app is running on localhost:8080
 
-  # Run all endpoint tests
-  deepeval test run test_classify.py test_sentiment.py test_summarize.py test_intent.py
+  # 4. Run all tests
+  deepeval test run test_classify.py test_sentiment.py test_summarize.py
+  test_intent.py
 
   # Or run a single endpoint's tests
   deepeval test run test_classify.py
@@ -72,4 +68,4 @@
   # Verbose output
   deepeval test run test_classify.py -v
 
-  The tests call each endpoint live on localhost:8080 and use Ollama as the judge LLM. For local Ollama, set OLLAMA_BASE_URL=http://localhost:11434 and leave OLLAMA_API_KEY unset.
+  The tests call each endpoint live on localhost:8080, then use OpenAI (as the judge LLM) to evaluate whether the responses are correct, relevant, properly structured, and free of hallucinations.

@@ -13,7 +13,7 @@ from deepeval.metrics import GEval
 from deepeval.dataset import EvaluationDataset
 
 from api_client import detect_intent
-from conftest import answer_relevancy_metric, json_schema_metric, ollama_evaluator_model
+from conftest import json_schema_metric, output_correctness_metric, answer_relevancy_metric
 
 
 # ---------------------------------------------------------------------------
@@ -81,20 +81,17 @@ INTENT_TEST_DATA = [
 # Build test cases by calling the live API
 # ---------------------------------------------------------------------------
 
-
 def build_intent_test_cases():
     test_cases = []
     for data in INTENT_TEST_DATA:
         response = detect_intent(data["input"])
         actual_output = json.dumps(response)
-        expected_output = json.dumps(
-            {
-                "primaryIntent": data["expected_primary_intent"],
-                "secondaryIntents": [],
-                "intentCategory": data["expected_category"],
-                "confidence": 0.9,
-            }
-        )
+        expected_output = json.dumps({
+            "primaryIntent": data["expected_primary_intent"],
+            "secondaryIntents": [],
+            "intentCategory": data["expected_category"],
+            "confidence": 0.9,
+        })
         test_cases.append(
             LLMTestCase(
                 input=data["input"],
@@ -132,16 +129,11 @@ intent_category_metric = GEval(
         "and factual declarations as 'statement'. Compare with the expected "
         "output to verify the category is correct."
     ),
-    evaluation_steps=[
-        "Identify the intent category expressed by the input text.",
-        "Compare the actual category with the expected category.",
-    ],
     evaluation_params=[
         LLMTestCaseParams.INPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT,
         LLMTestCaseParams.EXPECTED_OUTPUT,
     ],
-    model=ollama_evaluator_model(),
     threshold=0.5,
 )
 
@@ -153,16 +145,11 @@ intent_primary_metric = GEval(
         "should capture what the user is trying to accomplish. Synonyms and "
         "semantically equivalent descriptions should be considered correct."
     ),
-    evaluation_steps=[
-        "Identify the main purpose of the input text.",
-        "Compare the actual primary intent with the expected intent, allowing equivalent wording.",
-    ],
     evaluation_params=[
         LLMTestCaseParams.INPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT,
         LLMTestCaseParams.EXPECTED_OUTPUT,
     ],
-    model=ollama_evaluator_model(),
     threshold=0.5,
 )
 
@@ -172,7 +159,6 @@ intent_relevancy_metric = answer_relevancy_metric()
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-
 
 @pytest.mark.parametrize("test_case", intent_dataset.test_cases)
 def test_intent_schema_compliance(test_case: LLMTestCase):
